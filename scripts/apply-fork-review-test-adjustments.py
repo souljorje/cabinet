@@ -36,4 +36,11 @@ editor_path.write_text(
     encoding="utf-8",
 )
 
-print("Adjusted fork manifest normalization, tests, and editor naming.")
+# Keep generated documentation compatible with git diff --check.
+claude_path = root / "CLAUDE.md"
+claude_path.write_text(
+    claude_path.read_text(encoding="utf-8").rstrip() + "\n",
+    encoding="utf-8",
+)
+
+print("Adjusted fork manifest normalization, tests, editor naming, and EOF formatting.")
