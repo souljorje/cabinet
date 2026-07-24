@@ -26,26 +26,38 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --silent
 
       - name: Check fork invariants
         run: npm run fork:check
 
       - name: Lint
-        run: npm run lint
+        run: npm run lint -- --quiet
 
       - name: Unit tests
-        run: npm test
+        run: |
+          if ! npm test > unit-test.log 2>&1; then
+            echo "Unit tests failed. Relevant log tail:"
+            tail -n 240 unit-test.log
+            exit 1
+          fi
+          tail -n 20 unit-test.log
 
       - name: Build
-        run: npm run build
+        run: |
+          if ! npm run build > build.log 2>&1; then
+            echo "Build failed. Relevant log tail:"
+            tail -n 240 build.log
+            exit 1
+          fi
+          tail -n 30 build.log
 
       - name: Verify generated diff
         run: git diff --check
 
       - name: Create source archive
         run: |
-          rm -rf .next node_modules out
+          rm -rf .next node_modules out unit-test.log build.log
           zip -qr cabinet-fixed.zip . \
             -x '.git/*' \
             -x 'cabinet-fixed.zip'
