@@ -1,0 +1,59 @@
+name: Fork Fix Bundle
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apply-validate-package:
+    name: Apply, validate, and package fixes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Apply reviewed fixes
+        run: python3 scripts/apply-fork-review-fixes.py
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check fork invariants
+        run: npm run fork:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify generated diff
+        run: git diff --check
+
+      - name: Create source archive
+        run: |
+          rm -rf .next node_modules out
+          zip -qr cabinet-fixed.zip . \
+            -x '.git/*' \
+            -x 'cabinet-fixed.zip'
+
+      - name: Upload fixed source
+        uses: actions/upload-artifact@v4
+        with:
+          name: cabinet-fixed-source
+          path: cabinet-fixed.zip
+          if-no-files-found: error
+          retention-days: 7
