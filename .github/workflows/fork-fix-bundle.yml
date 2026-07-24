@@ -35,22 +35,33 @@ jobs:
         run: npm run lint -- --quiet
 
       - name: Unit tests
+        id: unit
+        continue-on-error: true
+        run: npm test > unit-test.log 2>&1
+
+      - name: Upload unit test diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: fork-fix-unit-test-log
+          path: unit-test.log
+          if-no-files-found: error
+          retention-days: 2
+
+      - name: Require unit tests
+        if: ${{ steps.unit.outcome != 'success' }}
         run: |
-          if ! npm test > unit-test.log 2>&1; then
-            echo "Unit tests failed. Relevant log tail:"
-            tail -n 240 unit-test.log
-            exit 1
-          fi
-          tail -n 20 unit-test.log
+          tail -n 80 unit-test.log
+          exit 1
 
       - name: Build
         run: |
           if ! npm run build > build.log 2>&1; then
             echo "Build failed. Relevant log tail:"
-            tail -n 240 build.log
+            tail -n 120 build.log
             exit 1
           fi
-          tail -n 30 build.log
+          tail -n 20 build.log
 
       - name: Verify generated diff
         run: git diff --check
