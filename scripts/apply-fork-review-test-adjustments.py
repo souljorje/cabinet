@@ -24,4 +24,16 @@ manifest_path.write_text(
     encoding="utf-8",
 )
 
-print("Adjusted fork manifest normalization and its unit test.")
+# Avoid shadowing the DOM click target in the editor handler.
+editor_path = root / "src" / "components" / "editor" / "editor.tsx"
+editor_content = editor_path.read_text(encoding="utf-8")
+editor_old = '''          const target = resolveInternalLink(\n            href,\n            activePath,\n            activeBase,\n            nodes,\n          );\n          if (target) {\n            navigateToPage(\n              target.path,\n              selectPage,\n              expandPath,\n              target.fragment,\n            );\n          }\n'''
+editor_new = '''          const resolvedTarget = resolveInternalLink(\n            href,\n            activePath,\n            activeBase,\n            nodes,\n          );\n          if (resolvedTarget) {\n            navigateToPage(\n              resolvedTarget.path,\n              selectPage,\n              expandPath,\n              resolvedTarget.fragment,\n            );\n          }\n'''
+if editor_content.count(editor_old) != 1:
+    raise RuntimeError("Expected internal-link resolver result block exactly once")
+editor_path.write_text(
+    editor_content.replace(editor_old, editor_new, 1),
+    encoding="utf-8",
+)
+
+print("Adjusted fork manifest normalization, tests, and editor naming.")
