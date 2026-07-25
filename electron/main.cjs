@@ -178,39 +178,19 @@ function getBundledNodeBinaryName() {
   return process.platform === "win32" ? "node.exe" : "node";
 }
 
-function workspaceSyncNode() {
-  const bundledNodePath = path.join(
-    process.resourcesPath,
-    "app.asar.unpacked",
-    ".next",
-    "standalone",
-    "bin",
-    getBundledNodeBinaryName()
-  );
-  if (!isDev && fs.existsSync(bundledNodePath)) {
-    return { command: bundledNodePath, env: {} };
-  }
-  return {
-    command: process.execPath,
-    env: { ELECTRON_RUN_AS_NODE: "1" },
-  };
-}
-
 function startWorkspaceSync() {
   if (workspaceSyncSupervisor) return;
-  const node = workspaceSyncNode();
   const supervisor = createWorkspaceSyncSupervisor({
     dataDir: managedDataDir,
-    nodeCommand: node.command,
-    nodeEnv: node.env,
   });
   if (supervisor.start()) workspaceSyncSupervisor = supervisor;
 }
 
-function stopWorkspaceSync() {
+async function stopWorkspaceSync() {
   if (!workspaceSyncSupervisor) return;
-  void workspaceSyncSupervisor.stop();
+  const supervisor = workspaceSyncSupervisor;
   workspaceSyncSupervisor = null;
+  await supervisor.stop();
 }
 
 function writeUpdateStatus(status) {
@@ -676,13 +656,22 @@ function configureAutoUpdates() {
   });
 }
 
+let backendCleanupPromise = null;
+
 function cleanupBackends() {
-  stopWorkspaceSync();
-  backendsQuitting = true;
-  for (const child of backendChildren) {
-    child.kill("SIGTERM");
-  }
-  backendChildren = [];
+  if (backendCleanupPromise) return backendCleanupPromise;
+  const cleanup = (async () => {
+    await stopWorkspaceSync();
+    backendsQuitting = true;
+    for (const child of backendChildren) {
+      child.kill("SIGTERM");
+    }
+    backendChildren = [];
+  })();
+  backendCleanupPromise = cleanup.finally(() => {
+    backendCleanupPromise = null;
+  });
+  return backendCleanupPromise;
 }
 
 /**
@@ -846,15 +835,25 @@ ipcMain.handle("cabinet:open-window", (_event, suffix) => openRoomWindow(suffix)
 
 app.on("window-all-closed", () => {
   destroyAllBrowserViews();
-  cleanupBackends();
+  void cleanupBackends();
   if (process.platform !== "darwin") {
     app.quit();
   }
 });
 
-app.on("before-quit", () => {
+let quitCleanupStarted = false;
+let quitCleanupComplete = false;
+
+app.on("before-quit", (event) => {
+  if (quitCleanupComplete) return;
+  event.preventDefault();
+  if (quitCleanupStarted) return;
+  quitCleanupStarted = true;
   destroyAllBrowserViews();
-  cleanupBackends();
+  void cleanupBackends().finally(() => {
+    quitCleanupComplete = true;
+    app.quit();
+  });
 });
 
 app.on("second-instance", () => {
