@@ -19,14 +19,26 @@ const tag = readArg("tag", `v${version}`);
 const outputPath = readArg("output", path.join(process.cwd(), "cabinet-release.json"));
 const gitCommit = readArg("git-commit", process.env.GITHUB_SHA || undefined);
 const releaseDate = readArg("release-date", new Date().toISOString());
-// Prefer an explicit --repository-url, then the CI repo (GITHUB_REPOSITORY),
-// then the canonical repo. Keeps generated URLs correct after the org move
-// (hilash/cabinet → cabinetai/cabinet) without hardcoding.
-const repositoryUrl = (
+function normalizeRepositoryUrl(value) {
+  return value
+    ?.replace(/^git\+/, "")
+    .replace(/\.git$/, "");
+}
+
+const packageRepositoryUrl = normalizeRepositoryUrl(
+  typeof packageJson.repository === "string"
+    ? packageJson.repository
+    : packageJson.repository?.url
+);
+
+// Prefer an explicit argument, then the active Actions repository, then the
+// checkout's package metadata. The canonical upstream URL is a final fallback.
+const repositoryUrl = normalizeRepositoryUrl(
   readArg("repository-url") ||
   (process.env.GITHUB_REPOSITORY && `https://github.com/${process.env.GITHUB_REPOSITORY}`) ||
+  packageRepositoryUrl ||
   "https://github.com/cabinetai/cabinet"
-).replace(/\.git$/, "");
+);
 
 // Prebuilt app-bundle keys for the zero-install `npx cabinetai run` path.
 // darwin/linux only — Windows still uses the source + npm-install fallback
