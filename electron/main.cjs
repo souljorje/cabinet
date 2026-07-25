@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 const { execFileSync } = require("child_process");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const net = require("net");
@@ -141,6 +142,19 @@ function resolveManagedDataDir() {
 }
 
 const managedDataDir = resolveManagedDataDir();
+
+function workspaceEnvironmentPath() {
+  const workspaceKey = crypto
+    .createHash("sha256")
+    .update(path.resolve(managedDataDir))
+    .digest("hex");
+  return path.join(
+    userDataDir,
+    "workspaces",
+    workspaceKey,
+    ".cabinet.env",
+  );
+}
 
 // Diagnostic logging: console capture + crash markers into
 // <dataDir>/.cabinet-state/logs/electron.log (LOGGING_AND_FILE_HISTORY_PRD §3).
@@ -523,6 +537,7 @@ async function startEmbeddedCabinet() {
     CABINET_INSTALL_KIND: getElectronInstallKind(),
     CABINET_DATA_DIR: managedDataDir,
     CABINET_USER_DATA: userDataDir,
+    CABINET_ENV_PATH: workspaceEnvironmentPath(),
     CABINET_APP_PORT: String(appPort),
     CABINET_DAEMON_PORT: String(daemonPort),
     CABINET_APP_ORIGIN: appOrigin,

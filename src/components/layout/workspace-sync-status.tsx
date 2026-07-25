@@ -87,9 +87,12 @@ export function WorkspaceSyncStatusIndicator() {
   }, []);
 
   useEffect(() => {
-    void refresh();
+    const initial = window.setTimeout(() => void refresh(), 0);
     const interval = window.setInterval(() => void refresh(), 5_000);
-    return () => window.clearInterval(interval);
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(interval);
+    };
   }, [refresh]);
 
   const presentation = presentations[status.state] ?? presentations["not-configured"];
