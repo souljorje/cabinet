@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import distribution from "../../../distribution.json";
 import { PROJECT_RELEASE_MANIFEST_PATH } from "@/lib/storage/path-utils";
 import { getReleaseManifestUrl, PROJECT_ROOT } from "@/lib/runtime/runtime-config";
 import type { AppBundleKey, ReleaseAppBundle, ReleaseManifest } from "@/types";
@@ -34,8 +35,10 @@ function buildAppBundle(repositoryUrl: string, gitTag: string, key: AppBundleKey
 function buildFallbackManifest(pkg: PackageManifest): ReleaseManifest {
   const version = pkg.version || "0.0.0";
   const gitTag = `v${version}`;
-  const repositoryUrl = pkg.repository?.url?.replace(/^git\+/, "").replace(/\.git$/, "") ||
-    "https://github.com/souljorje/cabinet";
+  const repositoryUrl =
+    pkg.repository?.url?.replace(/^git\+/, "").replace(/\.git$/, "") ||
+    `https://github.com/${distribution.repository}`;
+  const releaseAssetName = distribution.productName.replace(/\s+/g, ".");
 
   return {
     manifestVersion: 1,
@@ -54,8 +57,8 @@ function buildFallbackManifest(pkg: PackageManifest): ReleaseManifest {
     cabinetaiVersion: version,
     electron: {
       macos: {
-        zipAssetName: `Good.Place.Cabinet-darwin-arm64-${version}.zip`,
-        dmgAssetName: `Good.Place.Cabinet-${version}-arm64.dmg`,
+        zipAssetName: `${releaseAssetName}-darwin-arm64-${version}.zip`,
+        dmgAssetName: `${releaseAssetName}-${version}-arm64.dmg`,
       },
     },
   };

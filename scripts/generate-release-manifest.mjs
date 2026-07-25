@@ -13,6 +13,9 @@ function readArg(name, fallback = undefined) {
 const packageJson = JSON.parse(
   await fs.readFile(path.join(process.cwd(), "package.json"), "utf-8")
 );
+const distribution = JSON.parse(
+  await fs.readFile(path.join(process.cwd(), "distribution.json"), "utf-8")
+);
 
 const version = readArg("version", packageJson.version);
 const tag = readArg("tag", `v${version}`);
@@ -54,7 +57,7 @@ function appBundleUrl(tag, key) {
   return `${repositoryUrl}/releases/download/${tag}/${assetName}`;
 }
 
-const productName = packageJson.productName || "Cabinet";
+const productName = distribution.productName;
 const releaseAssetName = productName.replace(/\s+/g, ".");
 
 // GitHub replaces spaces in uploaded Electron Forge artifact names with dots.
@@ -88,7 +91,7 @@ const manifest = {
       // GitHub replaces the space in the Squirrel output ("Cabinet-X Setup.exe")
       // with a dot when it stores the release asset, so match the as-uploaded name.
       setupExeAssetName: `${releaseAssetName}-${version}.Setup.exe`,
-      nupkgAssetName: `good_place_cabinet-${version}-full.nupkg`,
+      nupkgAssetName: `${distribution.squirrelName}-${version}-full.nupkg`,
       releasesAssetName: "RELEASES",
     },
   },

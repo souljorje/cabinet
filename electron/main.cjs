@@ -6,6 +6,7 @@ const net = require("net");
 const { spawn } = require("child_process");
 const { app, BrowserWindow, dialog, autoUpdater, ipcMain } = require("electron");
 const { updateElectronApp } = require("update-electron-app");
+const distribution = require("../distribution.json");
 const {
   initBrowserViews,
   destroyAllBrowserViews,
@@ -13,9 +14,9 @@ const {
 const { shouldSeedDefaultContent } = require("./managed-data.cjs");
 const { createWorkspaceSyncSupervisor } = require("./workspace-sync.cjs");
 
-const APP_DISPLAY_NAME = "Good Place Cabinet";
-const APP_BUNDLE_ID = "com.souljorje.good-place-cabinet";
-const UPDATE_REPOSITORY = "souljorje/cabinet";
+const APP_DISPLAY_NAME = distribution.productName;
+const APP_BUNDLE_ID = distribution.bundleId;
+const UPDATE_REPOSITORY = distribution.repository;
 
 app.setName(APP_DISPLAY_NAME);
 app.setPath("userData", path.join(app.getPath("appData"), APP_DISPLAY_NAME));
@@ -42,9 +43,9 @@ function defaultUserVisibleDataDir() {
   // vary on whether ~/Documents exists; home-root is safer).
   const home = app.getPath("home");
   if (process.platform === "darwin" || process.platform === "win32") {
-    return path.join(home, "Documents", "Good Place OS");
+    return path.join(home, "Documents", distribution.defaultDataDirectory);
   }
-  return path.join(home, "Good Place OS");
+  return path.join(home, distribution.defaultDataDirectory);
 }
 
 function readPersistedDataDir() {
