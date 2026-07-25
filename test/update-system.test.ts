@@ -17,6 +17,13 @@ test("compareVersions sorts stable semver values correctly", () => {
   assert.equal(compareVersions("0.1.9", "0.2.0"), -1);
 });
 
+test("compareVersions sorts Good Place prereleases numerically", () => {
+  assert.equal(compareVersions("0.5.3-gp.2", "0.5.3-gp.1"), 1);
+  assert.equal(compareVersions("0.5.3-gp.9", "0.5.3-gp.10"), -1);
+  assert.equal(compareVersions("0.5.3-gp.10", "0.5.3-gp.9"), 1);
+  assert.equal(compareVersions("0.5.4-gp.1", "0.5.3-gp.10"), 1);
+});
+
 test("isStableVersion only accepts plain stable semver", () => {
   assert.equal(isStableVersion("0.2.0"), true);
   assert.equal(isStableVersion("v0.2.0"), true);
