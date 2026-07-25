@@ -465,6 +465,7 @@ function createWorkspaceSyncSupervisor({
       })
       .finally(() => {
         activeSync = null;
+        if (!started) configuration = null;
       });
     return activeSync;
   }
@@ -524,7 +525,7 @@ function createWorkspaceSyncSupervisor({
         error: "Cabinet closed before workspace sync finished.",
       });
     }
-    configuration = null;
+    if (!activeSync) configuration = null;
   }
 
   return { start, stop, sync };
