@@ -12,7 +12,10 @@ const {
   initBrowserViews,
   destroyAllBrowserViews,
 } = require("./browser-views.cjs");
-const { shouldSeedDefaultContent } = require("./managed-data.cjs");
+const {
+  classifyManagedDataDirectory,
+  shouldSeedDefaultContent,
+} = require("./managed-data.cjs");
 const { createWorkspaceSyncSupervisor } = require("./workspace-sync.cjs");
 
 const APP_DISPLAY_NAME = distribution.productName;
@@ -141,7 +144,7 @@ function resolveManagedDataDir() {
   return fresh;
 }
 
-const managedDataDir = resolveManagedDataDir();
+let managedDataDir = resolveManagedDataDir();
 
 function workspaceEnvironmentPath() {
   const workspaceKey = crypto
@@ -164,7 +167,6 @@ try {
   console.error("electron: initElectronLogging failed", err);
 }
 
-const updateStatusPath = path.join(managedDataDir, ".cabinet-state", "update-status.json");
 let mainWindow = null;
 let backendChildren = [];
 let workspaceSyncSupervisor = null;
@@ -208,6 +210,11 @@ async function stopWorkspaceSync() {
 }
 
 function writeUpdateStatus(status) {
+  const updateStatusPath = path.join(
+    managedDataDir,
+    ".cabinet-state",
+    "update-status.json",
+  );
   fs.mkdirSync(path.dirname(updateStatusPath), { recursive: true });
   fs.writeFileSync(updateStatusPath, JSON.stringify(status, null, 2), "utf8");
 }
@@ -451,12 +458,45 @@ function seedDefaultContent() {
   copyRecursive(seedDir, managedDataDir);
 }
 
-function ensureManagedData() {
-  fs.mkdirSync(managedDataDir, { recursive: true });
-  // Seed default content (pages, agent library, playbooks).
-  // Non-destructive: never overwrites existing files, so user edits survive
-  // and new templates from app updates are added automatically.
-  seedDefaultContent();
+async function ensureManagedData() {
+  while (true) {
+    fs.mkdirSync(managedDataDir, { recursive: true });
+    const classification = classifyManagedDataDirectory(managedDataDir);
+    if (classification === "cabinet") return;
+    if (classification === "empty") {
+      seedDefaultContent();
+      return;
+    }
+
+    const prompt = await dialog.showMessageBox({
+      type: "warning",
+      buttons: ["Choose another folder", "Quit"],
+      defaultId: 0,
+      cancelId: 1,
+      title: "Choose a Good Place workspace",
+      message: "This folder is not a Cabinet workspace.",
+      detail:
+        "Choose an empty folder or a workspace containing a regular .cabinet file. Existing files will not be changed.",
+    });
+    if (prompt.response !== 0) {
+      throw new Error("No valid Good Place workspace was selected.");
+    }
+
+    const selection = await dialog.showOpenDialog({
+      title: "Choose a Good Place workspace",
+      defaultPath: managedDataDir,
+      properties: ["openDirectory", "createDirectory"],
+    });
+    if (selection.canceled || !selection.filePaths[0]) continue;
+
+    managedDataDir = selection.filePaths[0];
+    writePersistedDataDir(managedDataDir);
+    try {
+      require("./logger.cjs").initElectronLogging(managedDataDir);
+    } catch {
+      // Logging remains on the original path if it cannot be moved.
+    }
+  }
 }
 
 function readDevAppUrlFromRuntime() {
@@ -518,7 +558,7 @@ async function startEmbeddedCabinet() {
     };
   }
 
-  ensureManagedData();
+  await ensureManagedData();
 
   const externalModulesDir = extractNativeModules();
   const [appPort, daemonPort] = await Promise.all([
