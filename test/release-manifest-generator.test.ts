@@ -44,6 +44,10 @@ test("local manifest generation uses the package repository", () => {
     assert.ok(
       urls.every((url) => url.startsWith("https://github.com/souljorje/cabinet")),
     );
+    assert.equal(manifest.npmPackage, undefined);
+    assert.equal(manifest.createCabinetVersion, undefined);
+    assert.equal(manifest.cabinetaiPackage, undefined);
+    assert.equal(manifest.cabinetaiVersion, undefined);
   } finally {
     fs.rmSync(temporaryDirectory, { recursive: true, force: true });
   }

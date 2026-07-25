@@ -51,10 +51,14 @@ function buildFallbackManifest(pkg: PackageManifest): ReleaseManifest {
     appBundles: Object.fromEntries(
       APP_BUNDLE_KEYS.map((key) => [key, buildAppBundle(repositoryUrl, gitTag, key)])
     ) as Record<AppBundleKey, ReleaseAppBundle>,
-    npmPackage: "create-cabinet",
-    createCabinetVersion: version,
-    cabinetaiPackage: "cabinetai",
-    cabinetaiVersion: version,
+    ...(distribution.publishNpmPackages
+      ? {
+          npmPackage: "create-cabinet",
+          createCabinetVersion: version,
+          cabinetaiPackage: "cabinetai",
+          cabinetaiVersion: version,
+        }
+      : {}),
     electron: {
       macos: {
         zipAssetName: `${releaseAssetName}-darwin-arm64-${version}.zip`,
@@ -103,8 +107,19 @@ function alignManifestWithFallback(
     gitTag,
     repositoryUrl,
     ...buildReleaseUrls(repositoryUrl, gitTag),
-    createCabinetVersion: version,
-    cabinetaiVersion: manifest.cabinetaiPackage ? version : manifest.cabinetaiVersion,
+    npmPackage: distribution.publishNpmPackages
+      ? manifest.npmPackage
+      : undefined,
+    createCabinetVersion: distribution.publishNpmPackages
+      ? version
+      : undefined,
+    cabinetaiPackage: distribution.publishNpmPackages
+      ? manifest.cabinetaiPackage
+      : undefined,
+    cabinetaiVersion:
+      distribution.publishNpmPackages && manifest.cabinetaiPackage
+        ? version
+        : undefined,
   };
 }
 

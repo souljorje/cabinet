@@ -19,6 +19,8 @@
     "postbuild": "node scripts/copy-standalone-assets.mjs",
     "electron:prep": "node scripts/prepare-electron-package.mjs",
     "release:manifest": "node scripts/generate-release-manifest.mjs",
+    "fork:check": "node scripts/check-fork-invariants.mjs",
+    "gp:release:prepare": "node scripts/prepare-good-place-release.mjs",
     "start": "concurrently -k -n app,daemon \"npm:start:next\" \"npm:start:daemon\"",
     "start:next": "next start",
     "start:daemon": "tsx server/cabinet-daemon.ts",

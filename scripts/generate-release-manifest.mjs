@@ -76,10 +76,14 @@ const manifest = {
   appBundles: Object.fromEntries(
     appBundleKeys.map((key) => [key, { assetName: appBundleAssetName(key, tag), url: appBundleUrl(tag, key) }])
   ),
-  npmPackage: "create-cabinet",
-  createCabinetVersion: version,
-  cabinetaiPackage: "cabinetai",
-  cabinetaiVersion: version,
+  ...(distribution.publishNpmPackages
+    ? {
+        npmPackage: "create-cabinet",
+        createCabinetVersion: version,
+        cabinetaiPackage: "cabinetai",
+        cabinetaiVersion: version,
+      }
+    : {}),
   electron: {
     macos: {
       arch: "arm64",
