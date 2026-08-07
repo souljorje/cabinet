@@ -225,14 +225,19 @@ This is the release flow to use right now.
 
 npm publishing uses the `NPM_TOKEN` GitHub Actions secret. It must contain a granular npm access token with write access to both `cabinetai` and `create-cabinet`. The publish jobs expose it only as `NODE_AUTH_TOKEN`; GitHub OIDC remains enabled to generate npm provenance attestations.
 
-macOS notarization/signing still needs GitHub Actions secrets (consumed by the separate `electron-release.yml`):
+macOS signing needs these GitHub Actions secrets (consumed by the separate `electron-release.yml`):
 
-- `APPLE_CERTIFICATE` - base64-encoded Apple Developer ID Application certificate
+- `APPLE_CERTIFICATE` - base64-encoded persistent code-signing certificate bundle; a self-signed certificate works for private distribution
 - `APPLE_CERTIFICATE_PASSWORD` - password for the certificate bundle
+- `APPLE_SIGN_IDENTITY` - required for macOS code signing
+
+Apple notarization is optional and additionally needs:
+
 - `APPLE_ID` - required for macOS notarization
 - `APPLE_APP_PASSWORD` - required for macOS notarization
 - `APPLE_TEAM_ID` - required for macOS notarization
-- `APPLE_SIGN_IDENTITY` - required for macOS code signing
+
+Self-signed releases require right-click → Open on first installation, but automatic updates work afterward as long as every release uses the same certificate.
 
 `GITHUB_TOKEN` is provided automatically by GitHub Actions for the release and Electron publishing steps.
 

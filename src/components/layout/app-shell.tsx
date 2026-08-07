@@ -790,7 +790,6 @@ export function AppShell() {
   const googleFrontmatter = selectedNode?.frontmatter?.google;
   const hasPersistentUpdateState =
     update?.updateStatus.state === "restart-required" ||
-    update?.updateStatus.state === "failed" ||
     update?.updateStatus.state === "starting" ||
     update?.updateStatus.state === "backing-up" ||
     update?.updateStatus.state === "downloading" ||

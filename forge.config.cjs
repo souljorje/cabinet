@@ -36,6 +36,27 @@ const PACKAGER_IGNORE = [
 ];
 
 const MACOS_LOCALES_TO_KEEP = new Set(["en.lproj", "en_GB.lproj", "he.lproj"]);
+const REQUIRED_MACOS_SIGNING_ENV = ["APPLE_SIGN_IDENTITY"];
+const MACOS_NOTARIZATION_ENV = ["APPLE_ID", "APPLE_APP_PASSWORD", "APPLE_TEAM_ID"];
+const hasMacosSigningIdentity = Boolean(process.env.APPLE_SIGN_IDENTITY);
+const hasMacosNotarization = MACOS_NOTARIZATION_ENV.every((name) => process.env[name]);
+const hasPartialMacosNotarization = MACOS_NOTARIZATION_ENV.some((name) => process.env[name]);
+
+if (process.env.REQUIRE_MACOS_SIGNING === "1") {
+  const missingSigningEnv = REQUIRED_MACOS_SIGNING_ENV.filter((name) => !process.env[name]);
+  if (missingSigningEnv.length > 0) {
+    throw new Error(
+      `macOS release signing is required, but these variables are missing: ${missingSigningEnv.join(", ")}`
+    );
+  }
+}
+
+if (hasPartialMacosNotarization && !hasMacosNotarization) {
+  const missingNotarizationEnv = MACOS_NOTARIZATION_ENV.filter((name) => !process.env[name]);
+  throw new Error(
+    `macOS notarization is partially configured; missing: ${missingNotarizationEnv.join(", ")}`
+  );
+}
 
 // Windows packaging needs a .ico; we only ship .icns/.png today. Fall back to
 // no explicit icon on Windows when the .ico is absent so `electron-forge make`
@@ -97,7 +118,7 @@ async function pruneLocaleDirectory(resourceDir) {
 }
 
 function codesignNativeBinaries(buildPath, electronVersion, platform, arch, done) {
-  if (platform !== "darwin" || process.env.APPLE_ID) {
+  if (platform !== "darwin" || hasMacosSigningIdentity) {
     done();
     return;
   }
@@ -130,7 +151,7 @@ function codesignNativeBinaries(buildPath, electronVersion, platform, arch, done
 
 function pruneMacLocales(buildPath, electronVersion, platform, arch, done) {
   void (async () => {
-    if (platform !== "darwin" || process.env.APPLE_ID) {
+    if (platform !== "darwin" || hasMacosSigningIdentity) {
       done();
       return;
     }
@@ -177,15 +198,16 @@ module.exports = {
     prune: true,
     ignore: PACKAGER_IGNORE,
     afterComplete: [codesignNativeBinaries, pruneMacLocales],
-    osxSign: process.env.APPLE_ID
+    osxSign: hasMacosSigningIdentity
       ? {
           identity: process.env.APPLE_SIGN_IDENTITY,
+          identityValidation: false,
           optionsForFile: () => ({
             entitlements: path.join(__dirname, "electron", "entitlements.mac.plist"),
           }),
         }
       : undefined,
-    osxNotarize: process.env.APPLE_ID
+    osxNotarize: hasMacosNotarization
       ? {
           appleId: process.env.APPLE_ID,
           appleIdPassword: process.env.APPLE_APP_PASSWORD,

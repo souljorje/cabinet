@@ -1,8 +1,8 @@
 name: Electron Release (manual)
 
 # Triggered manually. Two modes:
-#  * RELEASE  — dispatch with a `tag` (e.g. v0.4.0): macOS job signs/notarizes/
-#    publishes; Windows job builds and attaches artifacts to that release.
+#  * RELEASE  — dispatch with a `tag` (e.g. v0.4.0): macOS job signs, optionally
+#    notarizes, and publishes; Windows attaches artifacts to that release.
 #  * VALIDATE — dispatch with NO tag (against a branch): macOS and Windows build
 #    the current branch, smoke-test their packaged output, and upload artifacts
 #    without writing to a release.
@@ -23,7 +23,8 @@ jobs:
   electron-macos:
     runs-on: macos-latest
     env:
-      MACOS_SIGNING_CONFIGURED: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_ID != '' && '1' || '0' }}
+      MACOS_SIGNING_CONFIGURED: ${{ secrets.APPLE_CERTIFICATE != '' && secrets.APPLE_CERTIFICATE_PASSWORD != '' && secrets.APPLE_SIGN_IDENTITY != '' && '1' || '0' }}
+      MACOS_NOTARIZATION_CONFIGURED: ${{ secrets.APPLE_ID != '' && secrets.APPLE_APP_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' && '1' || '0' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -37,6 +38,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Require macOS release signing credentials
+        if: ${{ inputs.tag != '' && env.MACOS_SIGNING_CONFIGURED != '1' }}
+        run: |
+          echo "Tagged macOS releases require a persistent code-signing certificate." >&2
+          exit 1
 
       - name: Import Apple Developer certificate
         if: ${{ inputs.tag != '' && env.MACOS_SIGNING_CONFIGURED == '1' }}
@@ -64,10 +71,11 @@ jobs:
         if: ${{ inputs.tag == '' }}
         run: npx electron-forge make
 
-      - name: Build, sign, and notarize release DMG and ZIP
+      - name: Build and sign release DMG and ZIP
         if: ${{ inputs.tag != '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REQUIRE_MACOS_SIGNING: "1"
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -79,12 +87,18 @@ jobs:
           CABINET_ELECTRON_SMOKE_LOG_DIR: ${{ runner.temp }}/cabinet-electron-smoke-logs
         run: npm run test:electron:macos
 
-      - name: Verify release signing and notarization
-        if: ${{ inputs.tag != '' && env.MACOS_SIGNING_CONFIGURED == '1' }}
+      - name: Verify release signing
+        if: ${{ inputs.tag != '' }}
         run: |
           APP_PATH="$(find out -type d -name 'Good Place Cabinet.app' -print -quit)"
           test -n "$APP_PATH"
           codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+      - name: Verify release notarization
+        if: ${{ inputs.tag != '' && env.MACOS_NOTARIZATION_CONFIGURED == '1' }}
+        run: |
+          APP_PATH="$(find out -type d -name 'Good Place Cabinet.app' -print -quit)"
+          test -n "$APP_PATH"
           spctl --assess --type execute --verbose=4 "$APP_PATH"
 
       - name: Publish validated release artifacts
